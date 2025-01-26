@@ -1,10 +1,7 @@
 from typing import Tuple
-
 import torch
 from openai import Client as OpenAIClient
-
-from .lib import credentials, image
-
+from .lib import image
 
 class ImageWithPrompt:
     @classmethod
@@ -20,25 +17,33 @@ class ImageWithPrompt:
                     },
                 ),
                 "max_tokens": ("INT", {"min": 1, "max": 2048, "default": 77}),
+                "OPENAI_API_KEY": ("STRING", {"default": ""}),
+                "model": ("STRING", {"default": "gpt-4-vision-preview"}),
             }
         }
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "generate_completion"
-
     CATEGORY = "OpenAI"
 
-    def __init__(self):
-        self.open_ai_client: OpenAIClient = OpenAIClient(
-            api_key=credentials.get_open_ai_api_key()
-        )
-
     def generate_completion(
-        self, Image: torch.Tensor, prompt: str, max_tokens: int
+        self, 
+        Image: torch.Tensor, 
+        prompt: str, 
+        max_tokens: int,
+        OPENAI_API_KEY: str,
+        model: str
     ) -> Tuple[str]:
+        
+        # Create client with provided API key
+        client = OpenAIClient(api_key=OPENAI_API_KEY)
+        
+        # Convert image to base64
         b64image = image.pil2base64(image.tensor2pil(Image))
-        response = self.open_ai_client.chat.completions.create(
-            model="gpt-4-vision-preview",
+        
+        # Generate completion
+        response = client.chat.completions.create(
+            model=model,
             max_tokens=max_tokens,
             messages=[
                 {
@@ -53,6 +58,7 @@ class ImageWithPrompt:
                 }
             ],
         )
+        
         if len(response.choices) == 0:
             raise Exception("No response from OpenAI API")
 
